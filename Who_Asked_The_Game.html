@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Who Asked: The Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1f2937; /* Darker Slate */
+            color: #f3f4f6; /* Lighter Gray */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+            overflow-x: hidden;
+        }
+        .game-container {
+            background-color: #374151; /* Slate */
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 700px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .character-area {
+            background-color: #4b5563; /* Dark Gray */
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+        }
+        .health-bar-container {
+            background-color: #374151; /* Slate */
+            border-radius: 0.25rem;
+            overflow: hidden;
+            height: 1.75rem;
+            margin-top: 0.5rem;
+            border: 1px solid #6b7280;
+        }
+        .health-bar {
+            background-color: #22c55e; /* Green */
+            height: 100%;
+            width: 100%;
+            transition: width 0.5s ease-in-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            font-weight: bold;
+            color: #1f2937;
+        }
+        .health-bar.low { background-color: #ef4444; }
+        .health-bar.medium { background-color: #eab308; }
+
+        .phrase-button-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* Responsive grid */
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+        .phrase-button {
+            background-color: #3b82f6; /* Blue */
+            color: white;
+            padding: 0.85rem 0.75rem;
+            border-radius: 0.375rem;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            font-size: 0.9rem;
+            line-height: 1.3;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .phrase-button:hover { background-color: #2563eb; }
+        .phrase-button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+        .log-area {
+            background-color: #111827;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            height: 200px;
+            overflow-y: auto;
+            border: 1px solid #4b5563;
+            font-size: 0.875rem;
+        }
+        .log-message {
+            padding: 0.35rem 0;
+            border-bottom: 1px dashed #4b5563;
+            line-height: 1.6;
+        }
+        .log-message:last-child { border-bottom: none; }
+        .result-display {
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: bold;
+            min-height: 30px;
+            margin-top: 1rem;
+        }
+        .chosen-phrase {
+            padding: 0.5rem; border-radius: 0.375rem;
+            background-color: #374151; min-height: 40px;
+            display: inline-block; font-style: italic;
+            border: 1px solid #6b7280;
+        }
+        .player-win { color: #34d399; }
+        .ai-win { color: #f87171; }
+        .draw-text { color: #fbbf24; }
+
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.75); display: flex;
+            justify-content: center; align-items: center; z-index: 1000;
+            opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal.active { opacity: 1; visibility: visible; }
+        .modal-content {
+            background-color: #374151; padding: 2rem; border-radius: 0.5rem;
+            text-align: center; box-shadow: 0 0 25px rgba(0,0,0,0.6);
+            max-width: 90%; max-height: 90%; overflow-y: auto; /* Add max-height and overflow */
+        }
+        .modal-content h2 { font-size: 1.75rem; margin-bottom: 1rem; }
+        .modal-content p { margin-bottom: 1.5rem; }
+         .modal-content .battle-rules {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background-color: #1f2937;
+            border-radius: 0.375rem;
+            border: 1px solid #4b5563;
+            text-align: left;
+        }
+         .modal-content .battle-rules h3 {
+             font-size: 1.25rem;
+             margin-bottom: 0.75rem;
+             font-weight: bold;
+         }
+        .modal-content .move-list {
+             text-align: left;
+             margin-top: 1.5rem;
+             max-height: 300px; /* Limit height for scroll */
+             overflow-y: auto;
+             padding-right: 10px; /* Add some padding for the scrollbar */
+         }
+        .modal-content .move-list h3 {
+             font-size: 1.25rem;
+             margin-bottom: 0.75rem;
+             font-weight: bold;
+        }
+        .modal-content .move-item {
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px dashed #4b5563;
+        }
+         .modal-content .move-item:last-child {
+             border-bottom: none;
+         }
+
+        .modal-button {
+            background-color: #3b82f6; color: white; padding: 0.75rem 1.5rem;
+            border-radius: 0.375rem; border: none; cursor: pointer;
+            font-weight: 600; transition: background-color 0.2s;
+            font-size: 1.1rem; /* Slightly larger button */
+             margin-top: 1.5rem; /* Add space above button */
+        }
+        .modal-button:hover { background-color: #2563eb; }
+        .icon { font-size: 1.1em; margin-right: 0.25em;}
+
+        /* Style for the info button to trigger the moves modal */
+         #infoButton {
+             background-color: #60a5fa; /* Lighter Blue */
+             color: #1f2937; /* Dark text */
+             padding: 0.75rem 1.5rem;
+             border-radius: 0.375rem;
+             border: none;
+             cursor: pointer;
+             font-weight: 600;
+             transition: background-color 0.2s;
+             margin-top: 1.5rem; /* Space above the button */
+             font-size: 1rem;
+         }
+         #infoButton:hover {
+             background-color: #3b82f6; /* Blue */
+             color: white;
+         }
+
+    </style>
+</head>
+<body>
+    <h1 class="text-4xl font-bold mb-8 text-center text-blue-400 tracking-tight">Who Asked: The Game</h1>
+
+    <div class="game-container">
+        <div class="character-area">
+            <h2 class="text-2xl font-semibold">Opponent</h2>
+            <div class="health-bar-container">
+                <div id="aiHealthBar" class="health-bar">
+                    <span id="aiHealthText">10/10 HP</span>
+                </div>
+            </div>
+            <p class="mt-3 text-lg">AI's Salvo: <span id="aiChosenPhrase" class="chosen-phrase">Waiting...</span></p>
+        </div>
+
+        <div class="character-area">
+            <h2 class="text-2xl font-semibold">You</h2>
+            <div class="health-bar-container">
+                <div id="playerHealthBar" class="health-bar">
+                    <span id="playerHealthText">10/10 HP</span>
+                </div>
+            </div>
+            <p class="mt-3 text-lg">Your Retort: <span id="playerChosenPhrase" class="chosen-phrase">---</span></p>
+        </div>
+
+
+        <div id="resultDisplay" class="result-display">The AI is preparing its statement...</div>
+
+        <div id="playerChoicesContainer" class="mt-4">
+             <h3 class="text-lg font-semibold text-center mb-2">Counter with:</h3>
+            <div id="playerChoices" class="phrase-button-group">
+                </div>
+        </div>
+
+        <div class="log-area" id="battleLog">
+            <div class="log-message">The advanced debate begins... AI will make the first move!</div>
+        </div>
+
+        <button id="infoButton">View Moves & Rules</button>
+
+    </div>
+
+    <div id="gameOverModal" class="modal">
+        <div class="modal-content">
+            <h2 id="gameOverTitle" class="text-3xl">Game Over!</h2>
+            <p id="gameOverMessage" class="text-lg">The argument has concluded.</p>
+            <button id="restartGameButton" class="modal-button text-lg">Rematch!</button>
+        </div>
+    </div>
+
+    <div id="movesModal" class="modal">
+        <div class="modal-content">
+            <h2>Moves List & Rules</h2>
+
+            <div class="battle-rules">
+                <h3>Battle Logic:</h3>
+                <p><span class="icon">⚔️</span> Attack beats <span class="icon">⚖️</span> Balance</p>
+                <p><span class="icon">🛡️</span> Defense beats <span class="icon">⚔️</span> Attack</p>
+                <p><span class="icon">⚖️</span> Balance beats <span class="icon">🛡️</span> Defense</p>
+                 <p>Same types result in a Draw.</p>
+            </div>
+
+            <div class="move-list">
+                <h3>Available Moves:</h3>
+                </div>
+
+            <button id="closeMovesModalButton" class="modal-button">Close</button>
+        </div>
+    </div>
+
+
+    <script>
+        // --- Game Data ---
+        const allGamePhrases = [
+            // Original set
+            { name: "Who?", type: "Attack", description: "The classic interrogative." },
+            { name: "asked.", type: "Balance", description: "The standard deflection." },
+            { name: "What?", type: "Defense", description: "A demand for specifics." },
+            { name: "ever.", type: "Attack", description: "A challenge of relevance." },
+            { name: "Where?", type: "Balance", description: "A query of location." },
+            { name: "is the person who asked.", type: "Defense", description: "The ultimate dismissal." },
+
+            // From the image (Types assigned based on the image)
+            { name: "good job , I win", type: "Attack", description: "Claiming victory." },
+            { name: "part 2 coming soon in theaters...", type: "Attack", description: "A dramatic follow-up." },
+            { name: "February 31st , 1888", type: "Attack", description: "A nonsensical date." },
+            { name: "ctrl S to save your work", type: "Attack", description: "A techy taunt." },
+            { name: "You dropped this 👑 but I'm keeping it", type: "Attack", description: "A cheeky claim." },
+            { name: "I already responded in my head", type: "Attack", description: "Dismissive." },
+            { name: "That's crazy . Anyway ...", type: "Attack", description: "Changing the subject." },
+            { name: "Skill issue", type: "Attack", description: "A classic gamer taunt." },
+            { name: "You're not even a side character", type: "Attack", description: "Dismissing importance." },
+            { name: "I've seen NPCs with more dialog", type: "Attack", description: "Calling them boring." },
+
+            { name: "Tokyo , Japan", type: "Defense", description: "A specific, deflecting location." },
+            { name: "at 4:55 PM", type: "Defense", description: "A specific, deflecting time." },
+            { name: ". ? !", type: "Defense", description: "Expressing confusion defensively." },
+            { name: "source ?", type: "Defense", description: "Demanding proof." },
+            { name: "Name one time that's ever happened", type: "Defense", description: "Challenging a claim." },
+            { name: "This you ?", type: "Defense", description: "A direct accusation." },
+            { name: "Why are you so loud ?", type: "Defense", description: "Questioning their volume." },
+            { name: "Okay and ?", type: "Defense", description: "A dismissive challenge." },
+            { name: "I'll allow it", type: "Defense", description: "Condescending agreement." },
+            { name: "Your Honor , hearsay", type: "Defense", description: "A legal objection." },
+
+            { name: "on a Wednesday", type: "Balance", description: "A neutral, specific day." },
+            { name: "You're not wrong , but not right", type: "Balance", description: "A nuanced stance." },
+            { name: "In Minecraft", type: "Balance", description: "Shifting context." },
+            { name: "Per my last email ...", type: "Balance", description: "A corporate classic." },
+            { name: "canon event", type: "Balance", description: "Accepting fate." },
+            { name: "respectfully , no", type: "Balance", description: "Polite refusal." },
+            { name: "objectively hilarious", type: "Balance", description: "Stating an opinion as fact." },
+            { name: "Only on Tuesdays", type: "Balance", description: "A specific condition." },
+            { name: "That's not very Sigma of you", type: "Balance", description: "A trendy critique." },
+            { name: "It's giving ... filler episode", type: "Balance", description: "Calling it unimportant." }
+        ];
+
+        // Assign icons based on type
+        allGamePhrases.forEach(phrase => {
+            if (phrase.type === "Attack") phrase.icon = "⚔️";
+            else if (phrase.type === "Defense") phrase.icon = "🛡️";
+            else if (phrase.type === "Balance") phrase.icon = "⚖️";
+            else phrase.icon = "❓"; // Fallback
+        });
+
+        // --- Game State ---
+        let playerHealth = 10;
+        let aiHealth = 10;
+        const maxHealth = 10;
+        let gameActive = true;
+        let aiCurrentPhrase = null; // Stores AI's chosen phrase for the round
+
+        // --- DOM Elements ---
+        const playerHealthBarEl = document.getElementById('playerHealthBar');
+        const playerHealthTextEl = document.getElementById('playerHealthText');
+        const aiHealthBarEl = document.getElementById('aiHealthBar');
+        const aiHealthTextEl = document.getElementById('aiHealthText');
+        const battleLogEl = document.getElementById('battleLog');
+        const resultDisplayEl = document.getElementById('resultDisplay');
+        const playerChosenPhraseEl = document.getElementById('playerChosenPhrase');
+        const aiChosenPhraseEl = document.getElementById('aiChosenPhrase');
+        const playerChoicesDiv = document.getElementById('playerChoices');
+
+        const gameOverModalEl = document.getElementById('gameOverModal');
+        const gameOverTitleEl = document.getElementById('gameOverTitle');
+        const gameOverMessageEl = document.getElementById('gameOverMessage');
+        const restartGameButtonEl = document.getElementById('restartGameButton');
+
+        // New modal elements
+        const infoButtonEl = document.getElementById('infoButton');
+        const movesModalEl = document.getElementById('movesModal');
+        const closeMovesModalButtonEl = document.getElementById('closeMovesModalButton');
+        const moveListEl = movesModalEl.querySelector('.move-list');
+
+
+        // --- Game Logic Functions ---
+
+        function getRandomPhrase(excludePhrases = []) {
+            const availablePhrases = allGamePhrases.filter(p => !excludePhrases.some(excluded => excluded.name === p.name));
+            if (availablePhrases.length === 0) { // Should ideally not happen with a large list
+                 console.warn("Not enough unique phrases to exclude. Picking from full list.");
+                 return allGamePhrases[Math.floor(Math.random() * allGamePhrases.length)];
+            }
+            return availablePhrases[Math.floor(Math.random() * availablePhrases.length)];
+        }
+
+        // Determines the type that beats the opponent's type
+        function getWinningType(opponentType) {
+            if (opponentType === 'Attack') return 'Defense';  // Defense beats Attack
+            if (opponentType === 'Defense') return 'Balance'; // Balance beats Defense
+            if (opponentType === 'Balance') return 'Attack';  // Attack beats Balance
+            return null;
+        }
+
+        function getPhrasesOfType(type, excludePhrases = []) {
+            return allGamePhrases.filter(p => p.type === type && !excludePhrases.some(excluded => excluded.name === p.name));
+        }
+
+        function startNewRound() {
+            if (!gameActive) return;
+
+            playerChosenPhraseEl.textContent = '---'; // Clear player's previous choice display
+            disableActionButtons(true); // Disable buttons while AI "thinks" and player options are generated
+            resultDisplayEl.textContent = "The AI is preparing its statement..."; // Reset result display
+
+            // 1. AI selects its phrase after a short delay
+            setTimeout(() => {
+                aiCurrentPhrase = getRandomPhrase();
+                aiChosenPhraseEl.innerHTML = `<span class="icon">${aiCurrentPhrase.icon}</span>${aiCurrentPhrase.name}`;
+                logBattleEvent(`AI states: "${aiCurrentPhrase.name}" (${aiCurrentPhrase.type} ${aiCurrentPhrase.icon})`);
+                resultDisplayEl.textContent = "The opponent has spoken! How do you respond?";
+
+                // 2. Determine winning type for player and find a guaranteed winning phrase
+                const winningTypeForPlayer = getWinningType(aiCurrentPhrase.type);
+                let guaranteedWinPhrases = getPhrasesOfType(winningTypeForPlayer);
+
+                let guaranteedWinPhrase;
+                if (guaranteedWinPhrases.length > 0) {
+                    guaranteedWinPhrase = guaranteedWinPhrases[Math.floor(Math.random() * guaranteedWinPhrases.length)];
+                } else {
+                    logBattleEvent(`Warning: No phrases of type '${winningTypeForPlayer}' found to guarantee a win. Offering random.`, "warning");
+                    guaranteedWinPhrase = getRandomPhrase(); // Fallback
+                }
+
+                // 3. Select two other random phrases, ensuring no duplicates
+                let playerOptions = [guaranteedWinPhrase];
+                while (playerOptions.length < 3) {
+                    const nextOption = getRandomPhrase(playerOptions.concat(aiCurrentPhrase)); // Exclude AI's current phrase too
+                    if (!playerOptions.some(p => p.name === nextOption.name)) {
+                         playerOptions.push(nextOption);
+                    }
+                }
+
+
+                // 4. Shuffle these three options
+                for (let i = playerOptions.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [playerOptions[i], playerOptions[j]] = [playerOptions[j], playerOptions[i]];
+                }
+
+                // 5. Update UI with these choices
+                playerChoicesDiv.innerHTML = ''; // Clear old buttons
+                playerOptions.forEach(phrase => {
+                    if (!phrase) return;
+                    const button = document.createElement('button');
+                    button.classList.add('phrase-button');
+                    button.innerHTML = `<span class="icon">${phrase.icon}</span>${phrase.name}`;
+                    button.onclick = () => resolveRound(phrase);
+                    playerChoicesDiv.appendChild(button);
+                });
+                disableActionButtons(false); // Enable player to choose
+
+            }, 1500); // AI 'thinking' delay
+        }
+
+
+        function resolveRound(playerPhrase) {
+            if (!gameActive || !aiCurrentPhrase) return;
+
+            playerChosenPhraseEl.innerHTML = `<span class="icon">${playerPhrase.icon}</span>${playerPhrase.name}`;
+            disableActionButtons(true); // Disable buttons during result display
+
+            logBattleEvent(`You respond: "${playerPhrase.name}" (${playerPhrase.type} ${playerPhrase.icon})`);
+
+            // Determine winner of the round
+            const roundResultOutcome = determineWinner(playerPhrase.type, aiCurrentPhrase.type);
+
+            let resultText = "";
+            if (roundResultOutcome === 'player') {
+                aiHealth = Math.max(0, aiHealth - 1); // Ensure health doesn't go below zero
+                resultText = `<span class="player-win">Your ${playerPhrase.type} ${playerPhrase.icon} counters AI's ${aiCurrentPhrase.type} ${aiCurrentPhrase.icon}! AI takes 1 damage.</span>`;
+                logBattleEvent("You win the exchange!");
+            } else if (roundResultOutcome === 'ai') {
+                playerHealth = Math.max(0, playerHealth - 1); // Ensure health doesn't go below zero
+                resultText = `<span class="ai-win">AI's ${aiCurrentPhrase.type} ${aiCurrentPhrase.icon} bests your ${playerPhrase.type} ${playerPhrase.icon}! You take 1 damage.</span>`;
+                logBattleEvent("AI wins the exchange.");
+            } else { // draw
+                resultText = `<span class="draw-text">A standoff! Both used ${playerPhrase.type} ${playerPhrase.icon}.</span>`;
+                logBattleEvent("The exchange is a draw.");
+            }
+            resultDisplayEl.innerHTML = resultText;
+
+            updateHealthBars();
+            checkGameOver();
+
+            if (gameActive) {
+                // Start next round after a brief pause
+                setTimeout(startNewRound, 2500); // Increased delay slightly after results
+            }
+        }
+
+        // Determines the winner based on types
+        function determineWinner(playerType, aiType) {
+            if (playerType === "Unknown" || aiType === "Unknown") return 'draw'; // Should not happen
+            if (playerType === aiType) return 'draw';
+            // Player wins if their type counters AI's type based on the specified logic
+            if (
+                (playerType === 'Attack' && aiType === 'Balance') ||  // Attack > Balance
+                (playerType === 'Defense' && aiType === 'Attack') || // Defense > Attack
+                (playerType === 'Balance' && aiType === 'Defense')    // Balance > Defense
+            ) {
+                return 'player';
+            }
+            return 'ai'; // Otherwise AI wins
+        }
+
+        function updateHealthBars() {
+            const playerHPRatio = Math.max(0, playerHealth / maxHealth);
+            playerHealthBarEl.style.width = `${playerHPRatio * 100}%`;
+            playerHealthTextEl.textContent = `${playerHealth}/${maxHealth} HP`;
+            playerHealthBarEl.className = 'health-bar'; // Reset classes
+            if (playerHPRatio <= 0.3) playerHealthBarEl.classList.add('low');
+            else if (playerHPRatio <= 0.6) playerHealthBarEl.classList.add('medium');
+
+            const aiHPRatio = Math.max(0, aiHealth / maxHealth);
+            aiHealthBarEl.style.width = `${aiHPRatio * 100}%`;
+            aiHealthTextEl.textContent = `${aiHealth}/${maxHealth} HP`;
+            aiHealthBarEl.className = 'health-bar'; // Reset classes
+            if (aiHPRatio <= 0.3) aiHealthBarEl.classList.add('low');
+            else if (aiHPRatio <= 0.6) aiHealthBarEl.classList.add('medium');
+        }
+
+        function logBattleEvent(message, type = 'info') {
+            const logEntry = document.createElement('div');
+            logEntry.classList.add('log-message');
+            if (type === 'error') logEntry.style.color = '#f87171';
+            else if (type === 'warning') logEntry.style.color = '#fbbf24';
+            logEntry.innerHTML = message; // Use innerHTML to render icons
+            battleLogEl.appendChild(logEntry);
+            battleLogEl.scrollTop = battleLogEl.scrollHeight; // Auto-scroll
+        }
+
+        function disableActionButtons(disabled) {
+            const buttons = playerChoicesDiv.querySelectorAll('.phrase-button');
+            buttons.forEach(button => button.disabled = disabled);
+        }
+
+        function checkGameOver() {
+            if (playerHealth <= 0 || aiHealth <= 0) {
+                gameActive = false;
+                disableActionButtons(true);
+                let title = "Debate Concluded!";
+                let message = "";
+                if (playerHealth <= 0 && aiHealth <= 0) {
+                    title = "Mutual Annihilation!";
+                    message = "Both sides have exhausted their arguments! It's a draw.";
+                    resultDisplayEl.innerHTML = `<span class="draw-text">It's a Draw! No one wins the argument.</span>`;
+                } else if (playerHealth <= 0) {
+                    title = "You've Been Outwitted!";
+                    message = "The AI's rhetoric was superior. Better luck next time!";
+                    resultDisplayEl.innerHTML = `<span class="ai-win">AI Wins the Debate!</span>`;
+                } else {
+                    title = "Victory is Yours!";
+                    message = "Your arguments were undeniable! You've won the debate.";
+                    resultDisplayEl.innerHTML = `<span class="player-win">You Win the Debate!</span>`;
+                }
+                showGameOverModal(title, message);
+            }
+        }
+
+        function showGameOverModal(title, message) {
+            gameOverTitleEl.textContent = title;
+            gameOverMessageEl.textContent = message;
+            gameOverModalEl.classList.add('active');
+        }
+
+         function showMovesModal() {
+             // Populate the move list in the modal
+             moveListEl.innerHTML = '<h3>Available Moves:</h3>'; // Clear previous list
+             allGamePhrases.forEach(phrase => {
+                 const moveItem = document.createElement('div');
+                 moveItem.classList.add('move-item');
+                 moveItem.innerHTML = `<span class="icon">${phrase.icon}</span> <strong>${phrase.name}</strong> (${phrase.type})`;
+                 moveListEl.appendChild(moveItem);
+             });
+
+            movesModalEl.classList.add('active');
+         }
+
+         function hideMovesModal() {
+             movesModalEl.classList.remove('active');
+         }
+
+
+        function resetGame() {
+            playerHealth = maxHealth;
+            aiHealth = maxHealth;
+            gameActive = true;
+            updateHealthBars();
+            battleLogEl.innerHTML = '<div class="log-message">A new advanced debate begins... AI will make the first move!</div>';
+            resultDisplayEl.textContent = 'The AI is preparing its statement...';
+            playerChosenPhraseEl.textContent = '---';
+            aiChosenPhraseEl.textContent = 'Waiting...';
+            playerChoicesDiv.innerHTML = ''; // Clear buttons until AI has moved
+            gameOverModalEl.classList.remove('active');
+
+            // AI makes the first move after a short delay to show "preparing" message
+            setTimeout(startNewRound, 1000);
+        }
+
+        // --- Initialize Game ---
+        restartGameButtonEl.addEventListener('click', resetGame);
+
+        // Event listeners for the new moves modal
+        infoButtonEl.addEventListener('click', showMovesModal);
+        closeMovesModalButtonEl.addEventListener('click', hideMovesModal);
+         // Also close modal if user clicks outside the content
+         movesModalEl.addEventListener('click', (e) => {
+             if (e.target === movesModalEl) {
+                 hideMovesModal();
+             }
+         });
+
+
+        resetGame(); // Start the game for the first time
+
+    </script>
+</body>
+</html>
